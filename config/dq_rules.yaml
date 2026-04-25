@@ -1,0 +1,88 @@
+# ============================================================
+# Data Quality Rules  —  Stage 2+
+#
+# The scoring system verifies that DQ logic is externalised here.
+# Each rule maps to one of the 6 recognised dq_flag values.
+# ============================================================
+
+# ── Null checks ────────────────────────────────────────────────
+# Fields that must not be null in transactions Silver/Gold.
+# Records violating these rules receive dq_flag = "NULL_REQUIRED".
+null_checks:
+  fact_transactions:
+    - transaction_id
+    - account_id
+    - transaction_date
+    - amount
+    - transaction_type
+    - currency
+    - channel
+
+# ── Type checks ────────────────────────────────────────────────
+# Fields where values must be castable to the declared type.
+# Records failing cast receive dq_flag = "TYPE_MISMATCH".
+type_checks:
+  fact_transactions:
+    amount:                decimal
+    transaction_date:      date
+    transaction_timestamp: timestamp
+
+# ── Value domain checks ────────────────────────────────────────
+domain_checks:
+  transaction_type:
+    allowed: [DEBIT, CREDIT, FEE, REVERSAL]
+    dq_flag: TYPE_MISMATCH
+  channel:
+    allowed: [POS, APP, ATM, EFT, USSD, INTERNAL]
+    dq_flag: TYPE_MISMATCH
+
+# ── Currency normalisation ─────────────────────────────────────
+# All currency variants must be standardised to "ZAR".
+# Records with non-"ZAR" source values receive dq_flag = "CURRENCY_VARIANT".
+currency_normalisation:
+  target_value: ZAR
+  known_variants: ["R", "rands", "710", "zar", "Rands", "RANDS", "ZAR"]
+  flag_variants: true
+
+# ── Date format checks ─────────────────────────────────────────
+# Accepted input formats for date fields. Records with unrecognised
+# formats receive dq_flag = "DATE_FORMAT".
+date_format_checks:
+  accepted_formats:
+    - "yyyy-MM-dd"
+    - "dd/MM/yyyy"
+    - "dd-MM-yyyy"
+    - "MM/dd/yyyy"
+    - "yyyyMMdd"
+  date_fields:
+    transactions: [transaction_date]
+    accounts:     [open_date, last_activity_date]
+    customers:    [dob]
+
+# ── Referential integrity ──────────────────────────────────────
+# Transactions referencing an unknown account get dq_flag = "ORPHANED_ACCOUNT".
+referential_integrity:
+  fact_transactions:
+    - field: account_id
+      references: dim_accounts.account_id
+      dq_flag: ORPHANED_ACCOUNT
+
+# ── Duplicate handling ─────────────────────────────────────────
+# Duplicate transaction_id records (same id, different timestamps)
+# are removed from the Silver layer. The removed record is counted
+# in the DQ report under "DUPLICATE_DEDUPED".
+duplicate_handling:
+  transactions:
+    pk_field: transaction_id
+    keep: latest           # keep the record with the latest timestamp
+    dq_flag: DUPLICATE_DEDUPED
+
+# ── Null PK handling ───────────────────────────────────────────
+# Records with null primary keys are quarantined (written to
+# _quarantine/accounts/) and excluded from Silver. Logged under
+# "NULL_REQUIRED".
+null_pk_handling:
+  accounts:
+    pk_field: account_id
+    action: quarantine
+    dq_flag: NULL_REQUIRED

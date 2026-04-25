@@ -1,0 +1,50 @@
+# ============================================================
+# Pipeline Configuration
+#
+# All paths are absolute paths inside the Docker container.
+# The scoring system may inject this file at /data/config/pipeline_config.yaml.
+# Your pipeline reads from that path at startup.
+# ============================================================
+
+# ── Input paths (read-only; injected by scoring system) ───────
+input:
+  accounts_path:     /data/input/accounts.csv
+  transactions_path: /data/input/transactions.jsonl
+  customers_path:    /data/input/customers.csv
+
+# ── Output paths ───────────────────────────────────────────────
+output:
+  bronze_path:    /data/output/bronze
+  silver_path:    /data/output/silver
+  gold_path:      /data/output/gold
+  dq_report_path: /data/output/dq_report.json   # Stage 2+ only
+
+# ── Stage 3 streaming paths (uncomment at Stage 3) ─────────────
+# streaming:
+#   stream_input_path: /data/stream
+#   stream_gold_path:  /data/output/stream_gold
+#   poll_interval_seconds: 10
+#   quiesce_timeout_seconds: 60
+
+# ── Spark settings ─────────────────────────────────────────────
+spark:
+  master:   local[2]
+  app_name: nedbank-de-pipeline
+  driver_memory: 1500m
+  shuffle_partitions: 8
+  adaptive_enabled: true
+
+# ── DQ rules reference ─────────────────────────────────────────
+dq:
+  rules_path: /data/config/dq_rules.yaml
+
+# ── Silver deduplication primary keys ─────────────────────────
+silver:
+  dedup_keys:
+    accounts:     account_id
+    customers:    customer_id
+    transactions: transaction_id
+
+# ── Gold partition settings ────────────────────────────────────
+gold:
+  fact_transactions_partition_by: transaction_date
