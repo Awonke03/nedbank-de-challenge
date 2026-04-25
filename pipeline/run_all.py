@@ -1,11 +1,7 @@
 """
 Pipeline entry point — single-JVM, three-stage medallion pipeline.
 
-Key optimisation vs three-stage separate-session design:
-  • ONE SparkSession for all three stages — no JVM spin-up/tear-down cost
-    between stages (~15-20s saved per stage boundary).
-  • Spark session is passed into each stage function; each stage does NOT
-    call get_spark() or spark.stop() itself.
+
 """
 import logging
 import sys
