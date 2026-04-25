@@ -1,16 +1,4 @@
-"""
-pipeline/provision.py  ─  Gold Layer  (Silver → Gold)
 
-Key optimisations vs prior version:
-  • dim tables cached and materialised ONCE with a single .count() each.
-    (Prior version called .count() twice — materialise + log.)
-  • fact_transactions is cached before validation AND before write.
-    This means the 1M-row plan is evaluated exactly ONCE total.
-    The cache is released immediately after the write to free memory.
-  • Validation runs AFTER writing Gold (not before), using the cached DataFrames
-    so no re-reads are needed and no redundant fact evaluation occurs.
-  • Called with an existing SparkSession — does NOT create or stop Spark.
-"""
 from __future__ import annotations
 
 import sys
